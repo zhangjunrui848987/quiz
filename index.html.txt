@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>通用型線上測驗出題產生器</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; background: #f5f6fa; }
+    .container { display: flex; height: 100vh; }
+    .panel { width: 50%; height: 100%; display: flex; flex-direction: column; }
+    .left-panel { border-right: 3px solid #dcdde1; background: #ffffff; }
+    .right-panel { background: #f8f9fa; }
+    .header { background: #2f3640; color: #fff; padding: 15px 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .header.preview-header { background: #718093; }
+    .scroll-box { flex: 1; padding: 25px; overflow-y: auto; }
+    
+    /* 編輯器樣式 */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; font-size: 14px; }
+    input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #c8d6e5; border-radius: 6px; font-size: 14px; font-family: inherit; }
+    textarea { height: 120px; resize: vertical; line-height: 1.6; }
+    .hint { font-size: 12px; color: #8395a7; margin-top: 4px; font-weight: normal; }
+    .btn-update { background: #1dd1a1; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; }
+    .btn-update:hover { background: #10ac84; }
+
+    /* 預覽區 Iframe */
+    iframe { width: 100%; height: 100%; border: none; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 左側：直覺式設定面板 (所有人都能看懂) -->
+    <div class="left-panel panel">
+        <div class="header">
+            <span>⚙️ 測驗題目與內容設定</span>
+            <button class="btn-update" onclick="generateQuiz()">⚡ 立即更新測驗</button>
+        </div>
+        <div class="scroll-box">
+            <div class="form-group">
+                <label>📌 測驗大標題</label>
+                <input type="text" id="quizTitle" value="臺灣歷史與文化測驗">
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    📝 題目資料設定 (JSON 格式)
+                    <div class="hint">您可以直接修改下方的中文字、選項與答案（true 代表"是"，數字代表選擇題第幾個選項）。</div>
+                </label>
+                <textarea id="quizData" spellcheck="false">[
+  {
+    "id": "q1",
+    "type": "binary",
+    "title": "1. 討論「二二八事件」的主要目的，是希望從歷史中記取教訓，進而促進人們相互理解與尊重。",
+    "ans": "true",
+    "exp": "歷史教育的核心在於反思過去、記取教訓，並學會多元包容。"
+  },
+  {
+    "id": "q2",
+    "type": "binary",
+    "title": "2. 尚未實施標準時間制度時，漢人的生活依據自然運作進行耕種並記錄成農民曆。",
+    "ans": "true",
+    "exp": "傳統農業社會依循節氣與農民曆進行春耕夏耘。"
+  },
+  {
+    "id": "q11",
+    "type": "multiple",
+    "title": "11. 奶奶說明天是冬至要準備湯圓，宜祭祀、祈福，忌入宅，這是從哪本書得知的？",
+    "options": ["論語", "伊索寓言", "農民曆", "字典"],
+    "ans": "3",
+    "exp": "農民曆記載了每日宜忌、二十四節氣與傳統習俗。"
+  },
+  {
+    "id": "q12",
+    "type": "multiple",
+    "title": "12. 在臺灣有許多不同的族群，為什麼每個族群的文化可以獲得保存與推廣？",
+    "options": ["因為臺灣是封閉的社會", "因為被日本統治過", "因為臺灣是民主開放的社會", "因為臺灣經歷過大航海時代"],
+    "ans": "3",
+    "exp": "民主開放的社會重視多元文化價值，並透過政策保護各族群文化。"
+  }
+]</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右側：完全乾淨的學生作答區 -->
+    <div class="right-panel panel">
+        <div class="header preview-header">
+            <span>📝 學生線上作答預覽畫面</span>
+        </div>
+        <iframe id="quizPreview"></iframe>
+    </div>
+</div>
+
+<script>
+    function generateQuiz() {
+        const title = document.getElementById('quizTitle').value;
+        let dataRaw = document.getElementById('quizData').value;
+        let questions = [];
+        
+        try {
+            questions = JSON.parse(dataRaw);
+        } catch (e) {
+            alert("資料格式有誤，請檢查標點符號（需使用英文雙引號）！");
+            return;
+        }
+
+        // 分離是非題與選擇題
+        const binaries = questions.filter(q => q.type === 'binary');
+        const multiples = questions.filter(q => q.type === 'multiple');
+
+        // 動態生成 HTML 內容
+        let htmlContent = `
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<title>${title}</title>
+<style>
+body { font-family: system-ui, Arial, sans-serif; line-height: 1.6; max-width: 700px; margin: 30px auto; padding: 0 20px; color: #333; }
+h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
+h2 { color: #2980b9; margin-top: 30px; border-left: 5px solid #2980b9; padding-left: 10px; font-size: 1.3rem; }
+.question { background: #f8f9fa; padding: 18px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #e9ecef; }
+.question h3 { margin-top: 0; margin-bottom: 12px; font-size: 1.05rem; }
+.options label { display: block; margin-bottom: 8px; cursor: pointer; padding: 8px; border-radius: 4px; transition: background 0.2s; }
+.options label:hover { background: #e9ecef; }
+.options input { margin-right: 8px; }
+button { display: block; width: 100%; max-width: 200px; margin: 40px auto; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 25px; font-size: 1.1rem; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+button:hover { background-color: #219653; }
+#resultBox { display: none; background: #e8f4fd; border: 2px solid #3498db; border-radius: 8px; padding: 20px; margin-bottom: 25px; text-align: center; }
+#score { font-size: 2.5rem; font-weight: bold; color: #e74c3c; margin: 10px 0; }
+.feedback { font-weight: bold; margin-top: 10px; font-size: 0.95rem; }
+.correct-ans { color: #27ae60; }
+.wrong-ans { color: #c0392b; }
+.explanation { font-size: 0.9rem; color: #555; background: #fff; padding: 10px; border-left: 3px solid #bdc3c7; margin-top: 8px; border-radius: 0 4px 4px 0; font-weight: normal; }
+</style>
+</head>
+<body>
+
+<h1>${title}</h1>
+
+<div id="resultBox">
+    <h2>🎯 測驗結果</h2>
+    <div id="score">0 分</div>
+    <p id="scoreMessage"></p>
+</div>
+
+<form id="mainForm">
+`;
+
+        // 1. 渲染是非題
+        if(binaries.length > 0) {
+            htmlContent += `<h2>一、是非題 (請選擇「是」或「非」)</h2>`;
+            binaries.forEach(q => {
+                htmlContent += `
+                <div class="question">
+                    <h3>${q.title}</h3>
+                    <div class="options">
+                        <label><input type="radio" name="${q.id}" value="true" required> 是</label>
+                        <label><input type="radio" name="${q.id}" value="false"> 非</label>
+                    </div>
+                    <div class="feedback" id="fb_${q.id}"></div>
+                </div>`;
+            });
+        }
+
+        // 2. 渲染選擇題
+        if(multiples.length > 0) {
+            htmlContent += `<h2>二、選擇題 (請選擇一項最適合的答案)</h2>`;
+            multiples.forEach(q => {
+                htmlContent += `
+                <div class="question">
+                    <h3>${q.title}</h3>
+                    <div class="options">`;
+                q.options.forEach((opt, idx) => {
+                    htmlContent += `<label><input type="radio" name="${q.id}" value="${idx+1}" required> ${idx+1}. ${opt}</label>`;
+                });
+                htmlContent += `
+                    </div>
+                    <div class="feedback" id="fb_${q.id}"></div>
+                </div>`;
+            });
+        }
+
+        // 3. 提交按鈕與腳本
+        htmlContent += `
+    <button type="submit">提交測驗</button>
+</form>
+
+<script>
+const answerKey = ${JSON.stringify(questions.reduce((acc, cur) => {
+    acc[cur.id] = { ans: cur.ans, txt: cur.type==='binary'?(cur.ans==='true'?'是':'非'):cur.ans, exp: cur.exp };
+    return acc;
+}, {}))};
+
+document.getElementById('mainForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    let score = 0;
+    const total = Object.keys(answerKey).length;
+    
+    for (let key in answerKey) {
+        const selected = document.querySelector(\`input[name="\${key}"]:checked\`);
+        const fb = document.getElementById(\`fb_\${key}\`);
+        
+        if (selected.value === answerKey[key].ans) {
+            score += (100 / total);
+            fb.innerHTML = \`<span class="correct-ans">🟢 正確</span><div class="explanation">💡 解析：\${answerKey[key].exp}</div>\`;
+        } else {
+            fb.innerHTML = \`<span class="wrong-ans">❌ 錯誤</span> (正確答案為：\${answerKey[key].txt})<div class="explanation">💡 解析：\${answerKey[key].exp}</div>\`;
+        }
+    }
+    
+    const finalScore = Math.round(score);
+    document.getElementById('score').innerText = finalScore + ' 分';
+    document.getElementById('scoreMessage').innerText = finalScore >= 60 ? '表現不錯喔！ 👍' : '再接再厲！看過解析後一定會更進步 💪';
+    document.getElementById('resultBox').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+<\/script>
+</body>
+</html>`;
+
+        // 寫入右側 Iframe 顯示
+        const previewFrame = document.getElementById('quizPreview');
+        const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        previewDoc.open();
+        previewDoc.write(htmlContent);
+        previewDoc.close();
+    }
+
+    // 初始載入
+    window.onload = generateQuiz;
+</script>
+
+</body>
+</html>
