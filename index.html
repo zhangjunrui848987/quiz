@@ -72,8 +72,8 @@ const giantScoreEl = document.getElementById("giantScore");
 
 // 遊戲狀態與參數
 let bird, pipes, score, gameOver, frames;
-const GRAVITY = 0.25;      
-const JUMP = -5.5;        
+const GRAVITY = 0.18;      // 【已調低】重力加速度，讓下墜速度變慢
+const JUMP = -4.3;        // 【已調低】跳躍力，點擊時往上飛的幅度變小、變平緩
 const PIPE_SPEED = 2;     
 const PIPE_GAP = 140;     
 const PIPE_SPAWN_RATE = 100; 
@@ -92,7 +92,6 @@ function resetGame() {
     frames = 0;
     gameOver = false;
     
-    // 隱藏大分數與結算視窗
     giantScoreEl.style.display = "none";
     gameOverBox.style.display = "none";
     
@@ -213,7 +212,6 @@ function render() {
     ctx.fillStyle = "#e67e22"; 
     ctx.fillRect(bird.x + bird.width * 0.8, bird.y + bird.height * 0.45, 8, 5);
 
-    // 遊戲進行中：最上方顯示正常大小的分數
     if (!gameOver) {
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#000";
@@ -229,18 +227,16 @@ function render() {
 function endGame() {
     gameOver = true;
     
-    // 💥 觸發大分數特效
     giantScoreEl.innerText = score;
     giantScoreEl.style.display = "block";
     
-    // 顯示下方的結算小視窗
     finalScoreEl.innerText = score;
     gameOverBox.style.display = "block";
 }
 
-// 啟動遊戲
 resetGame();
 </script>
 
 </body>
 </html>
+
