@@ -3,129 +3,244 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>多人即時聊天室</title>
+<title>飛飛鳥經典小遊戲</title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #e6ecf0; height: 100vh; display: flex; flex-direction: column; }
+    body { background: #222; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
     
-    /* 頂部導覽列 */
-    .header { background: #34495e; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    /* 遊戲容器 */
+    #gameWrapper { position: relative; width: 400px; height: 600px; max-width: 100vw; max-height: 100vh; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    canvas { background: #70c5ce; display: block; width: 100%; height: 100%; border-radius: 8px; }
     
-    /* 暱稱設定區 */
-    .name-box { background: #fff; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #ddd; align-items: center; }
-    .name-box input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 20px; outline: none; padding-left: 15px; }
+    /* 💥 撞擊瞬間的特大分數顯示 💥 */
+    #giantScore {
+        display: none;
+        position: absolute;
+        top: 25%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.5);
+        font-size: 110px;
+        font-weight: 900;
+        color: #e74c3c;
+        text-shadow: 6px 6px 0px #fff, -2px -2px 0px #fff, 2px -2px 0px #fff, -2px 2px 0px #fff, 2px 2px 0px #fff;
+        z-index: 10;
+        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes popIn {
+        to { transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* 結算分數看板 */
+    #gameOverBox { display: none; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 255, 255, 0.95); padding: 25px 35px; border-radius: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 3px solid #f39c12; width: 280px; z-index: 5; }
+    #gameOverBox h2 { color: #e74c3c; margin-bottom: 15px; font-size: 22px; }
+    #gameOverBox p { font-size: 16px; margin-bottom: 20px; color: #333; font-weight: bold; }
     
-    /* 訊息顯示區 */
-    .chat-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    .msg-block { display: flex; flex-direction: column; max-width: 75%; }
-    .msg-block.me { align-self: flex-end; align-items: flex-end; }
-    .msg-block.others { align-self: flex-start; align-items: flex-start; }
+    /* 重來按鈕 */
+    #restartBtn { background: #27ae60; color: white; border: none; padding: 10px 25px; border-radius: 25px; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    #restartBtn:hover { background: #219653; transform: scale(1.05); }
     
-    .username { font-size: 11px; color: #666; margin-bottom: 2px; padding: 0 5px; }
-    .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; word-break: break-all; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-    .me .msg-bubble { background: #2ecc71; color: white; border-top-right-radius: 2px; }
-    .others .msg-bubble { background: white; color: #333; border-top-left-radius: 2px; }
-    
-    /* 底部輸入欄 */
-    .input-box { background: white; padding: 12px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
-    .input-box input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none; font-size: 14px; padding-left: 18px; }
-    .input-box button { background: #3498db; color: white; border: none; padding: 0 20px; border-radius: 25px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
-    .input-box button:hover { background: #2980b9; }
+    /* 說明提示 */
+    .hint { color: #aaa; font-size: 14px; margin-top: 15px; text-align: center; }
 </style>
 </head>
 <body>
 
-    <div class="header">💬 公共即時聊天室</div>
+<div id="gameWrapper">
+    <!-- 撞擊時顯現的巨大分數 -->
+    <div id="giantScore">0</div>
+
+    <!-- 遊戲畫布 -->
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
     
-    <!-- 暱稱設定 -->
-    <div class="name-box">
-        <span style="font-size: 13px; color: #555; font-weight: bold;">您的暱稱：</span>
-        <input type="text" id="usernameInput" value="路人甲" placeholder="請輸入您的聊天暱稱...">
+    <!-- 遊戲結束選單 -->
+    <div id="gameOverBox">
+        <h2>💥 GAME OVER 💥</h2>
+        <p>本次得分：<span id="finalScore">0</span> 分</p>
+        <button id="restartBtn" onclick="resetGame()">再玩一次</button>
     </div>
+</div>
 
-    <!-- 訊息室 -->
-    <div class="chat-container" id="chatContainer">
-        <!-- 訊息會動態載入到這裡 -->
-    </div>
+<div class="hint">💡 操作說明：點擊螢幕、點滑鼠左鍵 或 按鍵盤「空白鍵」讓小鳥往上飛。</div>
 
-    <!-- 輸入欄 -->
-    <div class="input-box">
-        <input type="text" id="messageInput" placeholder="輸入訊息..." autocomplete="off">
-        <button id="sendBtn">發送</button>
-    </div>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const gameOverBox = document.getElementById("gameOverBox");
+const finalScoreEl = document.getElementById("finalScore");
+const giantScoreEl = document.getElementById("giantScore");
 
-    <!-- 載入 Firebase 雲端資料庫核心套件 -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
+// 遊戲狀態與參數
+let bird, pipes, score, gameOver, frames;
+const GRAVITY = 0.25;      
+const JUMP = -5.5;        
+const PIPE_SPEED = 2;     
+const PIPE_GAP = 140;     
+const PIPE_SPAWN_RATE = 100; 
 
-    <script>
-        // 🚀 免費公共雲端資料庫配置 (已幫您綁定好專用通道)
-        const firebaseConfig = {
-            databaseURL: "https://firebaseio.com"
-        };
-        
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const chatRef = database.ref("messages");
+// 初始化/重設遊戲
+function resetGame() {
+    bird = {
+        x: 50,
+        y: 150,
+        width: 34,
+        height: 24,
+        velocity: 0
+    };
+    pipes = [];
+    score = 0;
+    frames = 0;
+    gameOver = false;
+    
+    // 隱藏大分數與結算視窗
+    giantScoreEl.style.display = "none";
+    gameOverBox.style.display = "none";
+    
+    loop();
+}
 
-        const chatContainer = document.getElementById("chatContainer");
-        const messageInput = document.getElementById("messageInput");
-        const usernameInput = document.getElementById("usernameInput");
-        const sendBtn = document.getElementById("sendBtn");
+// 控制跳躍
+function birdJump() {
+    if (!gameOver) {
+        bird.velocity = JUMP;
+    }
+}
 
-        // 隨機產生預設匿名暱稱
-        if(usernameInput.value === "路人甲") {
-            usernameInput.value = "訪客_" + Math.floor(Math.random() * 900 + 100);
-        }
+// 監聽各種控制輸入
+window.addEventListener("keydown", (e) => { if (e.code === "Space") birdJump(); });
+canvas.addEventListener("touchstart", (e) => { e.preventDefault(); birdJump(); });
+canvas.addEventListener("mousedown", birdJump);
 
-        // 發送訊息功能
-        function sendMessage() {
-            const text = messageInput.value.trim();
-            const user = usernameInput.value.trim() || "匿名者";
-            
-            if (text === "") return;
+// 主遊戲循環
+function loop() {
+    if (gameOver) return;
 
-            // 將訊息推送到雲端資料庫
-            chatRef.push({
-                username: user,
-                message: text,
-                timestamp: Date.now()
-            });
+    update();
+    render();
 
-            messageInput.value = "";
-        }
+    frames++;
+    requestAnimationFrame(loop);
+}
 
-        // 綁定發送事件 (點擊按鈕或按 Enter)
-        sendBtn.addEventListener("click", sendMessage);
-        messageInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") sendMessage();
+// 更新所有遊戲物理數據
+function update() {
+    bird.velocity += GRAVITY;
+    bird.y += bird.velocity;
+
+    if (bird.y + bird.height >= canvas.height || bird.y <= 0) {
+        endGame();
+    }
+
+    if (frames % PIPE_SPAWN_RATE === 0) {
+        const minHeight = 50;
+        const maxHeight = canvas.height - PIPE_GAP - 100;
+        const topPipeHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+        pipes.push({
+            x: canvas.width,
+            topHeight: topPipeHeight,
+            width: 60,
+            passed: false
         });
+    }
 
-        // 監聽雲端資料庫：當有新訊息時即時顯示在網頁上
-        chatRef.limitToLast(50).on("child_added", (snapshot) => {
-            const data = snapshot.val();
-            const isMe = data.username === usernameInput.value.trim();
-            
-            const msgBlock = document.createElement("div");
-            msgBlock.classList.add("msg-block", isMe ? "me" : "others");
+    for (let i = pipes.length - 1; i >= 0; i--) {
+        let p = pipes[i];
+        p.x -= PIPE_SPEED;
 
-            msgBlock.innerHTML = `
-                <div class="username">${escapeHtml(data.username)}</div>
-                <div class="msg-bubble">${escapeHtml(data.message)}</div>
-            `;
+        const birdRight = bird.x + bird.width;
+        const birdBottom = bird.y + bird.height;
+        const pipeRight = p.x + p.width;
+        const bottomPipeTop = p.topHeight + PIPE_GAP;
 
-            chatContainer.appendChild(msgBlock);
-            
-            // 自動滾動到最底部
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        });
-
-        // 防 XSS 注入安全防護
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        if (birdRight > p.x && bird.x < pipeRight) {
+            if (bird.y < p.topHeight || birdBottom > bottomPipeTop) {
+                endGame();
+            }
         }
-    </script>
+
+        if (!p.passed && p.x + p.width / 2 < bird.x) {
+            score++;
+            p.passed = true;
+        }
+
+        if (p.x + p.width < 0) {
+            pipes.splice(i, 1);
+        }
+    }
+}
+
+// 繪製遊戲畫面
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#70c5ce";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "#ded895";
+    ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+    pipes.forEach(p => {
+        ctx.fillStyle = "#73bf2e";
+        ctx.strokeStyle = "#538221";
+        ctx.lineWidth = 3;
+
+        ctx.fillRect(p.x, 0, p.width, p.topHeight);
+        ctx.strokeRect(p.x, -5, p.width, p.topHeight + 5);
+
+        const bottomPipeTop = p.topHeight + PIPE_GAP;
+        const bottomPipeHeight = canvas.height - bottomPipeTop;
+        ctx.fillRect(p.x, bottomPipeTop, p.width, bottomPipeHeight);
+        ctx.strokeRect(p.x, bottomPipeTop, p.width, bottomPipeHeight + 5);
+    });
+
+    ctx.fillStyle = "#f1c40f";
+    ctx.strokeStyle = "#e67e22";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(bird.x + bird.width/2, bird.y + bird.height/2, bird.width/2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(bird.x + bird.width * 0.7, bird.y + bird.height * 0.3, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(bird.x + bird.width * 0.75, bird.y + bird.height * 0.3, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#e67e22"; 
+    ctx.fillRect(bird.x + bird.width * 0.8, bird.y + bird.height * 0.45, 8, 5);
+
+    // 遊戲進行中：最上方顯示正常大小的分數
+    if (!gameOver) {
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 4;
+        ctx.font = "bold 35px sans-serif";
+        ctx.textAlign = "center";
+        ctx.strokeText(score, canvas.width / 2, 60);
+        ctx.fillText(score, canvas.width / 2, 60);
+    }
+}
+
+// 結束遊戲
+function endGame() {
+    gameOver = true;
+    
+    // 💥 觸發大分數特效
+    giantScoreEl.innerText = score;
+    giantScoreEl.style.display = "block";
+    
+    // 顯示下方的結算小視窗
+    finalScoreEl.innerText = score;
+    gameOverBox.style.display = "block";
+}
+
+// 啟動遊戲
+resetGame();
+</script>
+
 </body>
 </html>
-
