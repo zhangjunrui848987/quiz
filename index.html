@@ -3,304 +3,196 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>飛飛鳥經典小遊戲</title>
+<title>CYBER_AI 核心控制台</title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #222; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; }
     
-    /* 遊戲容器 */
-    #gameWrapper { position: relative; width: 400px; height: 600px; max-width: 100vw; max-height: 100vh; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    canvas { background: #70c5ce; display: block; width: 100%; height: 100%; border-radius: 8px; }
+    /* 高科技頂部導覽列 */
+    .header { background: #161b22; padding: 15px; border-bottom: 2px solid #58a6ff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(88,166,255,0.1); }
+    .header h1 { font-size: 18px; color: #58a6ff; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+    .status-tag { background: rgba(56, 139, 253, 0.15); color: #58a6ff; font-size: 11px; padding: 4px 8px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.4); text-transform: uppercase; font-weight: bold; }
+
+    /* 設定區：輸入金鑰與知識庫 */
+    .setup-panel { background: #161b22; padding: 15px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #30363d; font-size: 13px; }
+    .input-row { display: flex; gap: 10px; align-items: center; }
+    .input-row label { width: 85px; color: #8b949e; font-weight: bold; }
+    .setup-panel input, .setup-panel textarea { flex: 1; background: #0d1117; border: 1px solid #30363d; padding: 8px 12px; border-radius: 6px; color: #c9d1d9; outline: none; font-family: inherit; }
+    .setup-panel input:focus, .setup-panel textarea:focus { border-color: #58a6ff; }
+    .setup-panel textarea { height: 60px; resize: none; }
+
+    /* 聊天訊息主視窗 */
+    .chat-container { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: radial-gradient(circle at center, #11161d 0%, #0d1117 100%); }
+    .msg-row { display: flex; flex-direction: column; max-width: 85%; }
+    .msg-row.user { align-self: flex-end; align-items: flex-end; }
+    .msg-row.ai { align-self: flex-start; align-items: flex-start; }
     
-    /* 💥 開始遊戲前的巨大提示字樣 💥 */
-    #startMessage {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.75);
-        color: white;
-        padding: 20px 25px;
-        border-radius: 10px;
-        text-align: center;
-        font-size: 16px;
-        font-weight: bold;
-        line-height: 1.8;
-        border: 2px solid #f1c40f;
-        z-index: 15;
-        width: 300px;
-        pointer-events: none; /* 讓點擊穿透到畫布 */
-    }
-
-    #startMessage span {
-        display: block;
-        font-size: 20px;
-        color: #f1c40f;
-        margin-bottom: 8px;
-        animation: blink 1s infinite alternate;
-    }
-
-    @keyframes blink {
-        from { opacity: 0.5; }
-        to { opacity: 1; }
-    }
-
-    /* 💥 撞擊瞬間的特大分數顯示 💥 */
-    #giantScore {
-        display: none;
-        position: absolute;
-        top: 25%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0.5);
-        font-size: 110px;
-        font-weight: 900;
-        color: #e74c3c;
-        text-shadow: 6px 6px 0px #fff, -2px -2px 0px #fff, 2px -2px 0px #fff, -2px 2px 0px #fff, 2px 2px 0px #fff;
-        z-index: 10;
-        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-
-    @keyframes popIn {
-        to { transform: translate(-50%, -50%) scale(1); }
-    }
-
-    /* 結算分數看板 */
-    #gameOverBox { display: none; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 255, 255, 0.95); padding: 25px 35px; border-radius: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 3px solid #f39c12; width: 280px; z-index: 5; }
-    #gameOverBox h2 { color: #e74c3c; margin-bottom: 15px; font-size: 22px; }
-    #gameOverBox p { font-size: 16px; margin-bottom: 20px; color: #333; font-weight: bold; }
+    .sender-name { font-size: 11px; color: #8b949e; margin-bottom: 4px; padding: 0 4px; font-weight: bold; }
+    .bubble { padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; word-break: break-all; white-space: pre-wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .user .bubble { background: #1f6feb; color: #ffffff; border-bottom-right-radius: 2px; }
+    .ai .bubble { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-bottom-left-radius: 2px; }
     
-    /* 重來按鈕 */
-    #restartBtn { background: #27ae60; color: white; border: none; padding: 10px 25px; border-radius: 25px; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    #restartBtn:hover { background: #219653; transform: scale(1.05); }
-    
-    /* 說明提示 */
-    .hint { color: #aaa; font-size: 14px; margin-top: 15px; text-align: center; }
+    /* 載入中動畫 */
+    .loading-bubble { display: flex; gap: 4px; padding: 12px 16px; background: #21262d; border-radius: 12px; border: 1px solid #30363d; align-items: center; }
+    .dot { width: 6px; height: 6px; background: #58a6ff; border-radius: 50%; animation: blink 1.4s infinite both; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%, 100% { opacity: .2; } 20% { opacity: 1; } }
+
+    /* 底部輸入欄 */
+    .input-panel { background: #161b22; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #30363d; }
+    .input-panel input { flex: 1; background: #0d1117; border: 1px solid #30363d; padding: 12px 16px; border-radius: 24px; color: #c9d1d9; outline: none; font-size: 14px; transition: border 0.2s; }
+    .input-panel input:focus { border-color: #58a6ff; }
+    .input-panel button { background: #238636; color: white; border: none; padding: 0 24px; border-radius: 24px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; }
+    .input-panel button:hover { background: #2ea043; }
 </style>
 </head>
 <body>
 
-<div id="gameWrapper">
-    <!-- 開始前的提示文字 -->
-    <div id="startMessage">
-        <span>🎮 準備開始</span>
-        請按下空白鍵<br>或按一下正義一個地方即可開始遊戲
+    <!-- 頂部列 -->
+    <div class="header">
+        <h1>⚡ CYBER_AI 智慧終端</h1>
+        <div class="status-tag" id="statusTag">系統就緒</div>
+    </div>
+    
+    <!-- RAG 知識庫設定區（高科技核心） -->
+    <div class="setup-panel">
+        <div class="input-row">
+            <label>🔑 Gemini 金鑰</label>
+            <input type="password" id="apiKeyInput" placeholder="請貼上您的免費 Gemini API Key...">
+        </div>
+        <div class="input-row">
+            <label>📚 精準知識庫</label>
+            <textarea id="knowledgeInput" placeholder="在此輸入您要交給 AI 遵循的正確資料、標準答案、歷史檔案或規範...（填入後 AI 回答會絕對精準！）">【範例知識庫：正義大樓管理規則】
+1. 本大樓開放時間為每日早上6點至晚上10點。
+2. 垃圾集中場位於地下的一樓（B1），每日晚上8點會進行清運。
+3. 訪客進入必須在管理室登記，且晚上9點後謝絕訪客進出。
+4. 管理室聯絡電話為：07-1234567。</textarea>
+        </div>
     </div>
 
-    <!-- 撞擊時顯現的巨大分數 -->
-    <div id="giantScore">0</div>
-
-    <!-- 遊戲畫布 -->
-    <canvas id="gameCanvas" width="400" height="600"></canvas>
-    
-    <!-- 遊戲結束選單 -->
-    <div id="gameOverBox">
-        <h2>💥 GAME OVER 💥</h2>
-        <p>本次得分：<span id="finalScore">0</span> 分</p>
-        <button id="restartBtn" onclick="resetGame()">再玩一次</button>
+    <!-- 聊天對話窗 -->
+    <div class="chat-container" id="chatBox">
+        <div class="msg-row ai">
+            <div class="sender-name">SYSTEM_AI</div>
+            <div class="bubble">歡迎使用精準型 AI 終端。請先在上方填寫您的免費 API Key。您可以將任何標準答案填入「精準知識庫」中，我將百分之百遵循該資料進行邏輯推導與回覆！</div>
+        </div>
     </div>
-</div>
 
-<div class="hint">💡 操作說明：點擊螢幕、點滑鼠左鍵 或 按鍵盤「空白鍵」讓小鳥往上飛。</div>
+    <!-- 底部打字輸入 -->
+    <div class="input-panel">
+        <input type="text" id="userInput" placeholder="請輸入您的問題..." autocomplete="off">
+        <button id="sendBtn">發送指令</button>
+    </div>
 
-<script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const gameOverBox = document.getElementById("gameOverBox");
-const finalScoreEl = document.getElementById("finalScore");
-const giantScoreEl = document.getElementById("giantScore");
-const startMessageEl = document.getElementById("startMessage");
+    <script>
+        const chatBox = document.getElementById("chatBox");
+        const userInput = document.getElementById("userInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const apiKeyInput = document.getElementById("apiKeyInput");
+        const knowledgeInput = document.getElementById("knowledgeInput");
+        const statusTag = document.getElementById("statusTag");
 
-// 遊戲狀態與參數
-let bird, pipes, score, gameOver, gameStarted, frames;
-const GRAVITY = 0.18;      
-const JUMP = -4.3;        
-const PIPE_SPEED = 2;     
-const PIPE_GAP = 140;     
-const PIPE_SPAWN_RATE = 100; 
+        // 從瀏覽器快取自動抓取上次存過的金鑰，免重複輸入
+        if(localStorage.getItem("gemini_key")) {
+            apiKeyInput.value = localStorage.getItem("gemini_key");
+        }
 
-// 初始化/重設遊戲
-function resetGame() {
-    bird = {
-        x: 50,
-        y: 250, // 稍微調高初始小鳥位置
-        width: 34,
-        height: 24,
-        velocity: 0
-    };
-    pipes = [];
-    score = 0;
-    frames = 0;
-    gameOver = false;
-    gameStarted = false; // 預設尚未開始
-    
-    // 顯示開始提示，隱藏大分數與結算視窗
-    startMessageEl.style.display = "block";
-    giantScoreEl.style.display = "none";
-    gameOverBox.style.display = "none";
-    
-    // 繪製初始畫面（靜止狀態）
-    render();
-}
+        async function handleSend() {
+            const prompt = userInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+            const knowledge = knowledgeInput.value.trim();
 
-// 觸發遊戲動作（開始或跳躍）
-function handleAction() {
-    if (gameOver) return;
+            if (!prompt) return;
+            if (!apiKey) {
+                alert("請先輸入您的 Gemini API Key！");
+                return;
+            }
 
-    if (!gameStarted) {
-        // 如果還沒開始，按下後啟動遊戲
-        gameStarted = true;
-        startMessageEl.style.display = "none";
-        bird.velocity = JUMP; // 讓小鳥開局直接往上跳一下
-        loop();
-    } else {
-        // 如果已經開始，就是正常的跳躍
-        bird.velocity = JUMP;
-    }
-}
+            // 儲存金鑰到快取
+            localStorage.setItem("gemini_key", apiKey);
 
-// 監聽各種控制輸入
-window.addEventListener("keydown", (e) => { 
-    if (e.code === "Space") {
-        e.preventDefault();
-        handleAction(); 
-    }
-});
-canvas.addEventListener("touchstart", (e) => { 
-    e.preventDefault(); 
-    handleAction(); 
-});
-canvas.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    handleAction();
-});
+            // 1. 渲染使用者訊息
+            appendMessage(prompt, "user", "YOU");
+            userInput.value = "";
 
-// 主遊戲循環
-function loop() {
-    if (gameOver || !gameStarted) return;
+            // 2. 顯示 AI 載入中動畫
+            const loadingEl = showLoading();
+            statusTag.innerText = "計算中...";
+            statusTag.style.color = "#e3b341";
 
-    update();
-    render();
+            // 3. 核心邏輯：將「知識庫」與「使用者的問題」打包融合，強制 AI 進行精準檢索
+            const rragPrompt = `你是一個極度精準、絕對不胡說八道的專業 AI 助手。
+請完全根據以下提供的【精準知識庫】內容來回答使用者的問題。如果知識庫中沒有相關資訊，請委婉地回答「抱歉，根據目前的知識庫資料無法提供此答案」，絕對不能自行編造、幻想任何事實。
 
-    frames++;
-    requestAnimationFrame(loop);
-}
+【精準知識庫內容】：
+${knowledge}
 
-// 更新所有遊戲物理數據
-function update() {
-    bird.velocity += GRAVITY;
-    bird.y += bird.velocity;
+【使用者的問題】：
+${prompt}`;
 
-    if (bird.y + bird.height >= canvas.height || bird.y <= 0) {
-        endGame();
-    }
+            try {
+                // 4. 串接 Google 官方最新的免費大模型介面 (Gemini 2.5 Flash)
+                const response = await fetch(`https://googleapis.com{apiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: rragPrompt }] }]
+                    })
+                });
 
-    if (frames % PIPE_SPAWN_RATE === 0) {
-        const minHeight = 50;
-        const maxHeight = canvas.height - PIPE_GAP - 100;
-        const topPipeHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                const data = await response.json();
+                loadingEl.remove(); // 移除動畫
 
-        pipes.push({
-            x: canvas.width,
-            topHeight: topPipeHeight,
-            width: 60,
-            passed: false
-        });
-    }
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    const aiReply = data.candidates[0].content.parts[0].text;
+                    appendMessage(aiReply, "ai", "CYBER_AI");
+                    statusTag.innerText = "系統就緒";
+                    statusTag.style.color = "#58a6ff";
+                } else {
+                    throw new Error("回傳格式異常");
+                }
 
-    for (let i = pipes.length - 1; i >= 0; i--) {
-        let p = pipes[i];
-        p.x -= PIPE_SPEED;
-
-        const birdRight = bird.x + bird.width;
-        const birdBottom = bird.y + bird.height;
-        const pipeRight = p.x + p.width;
-        const bottomPipeTop = p.topHeight + PIPE_GAP;
-
-        if (birdRight > p.x && bird.x < pipeRight) {
-            if (bird.y < p.topHeight || birdBottom > bottomPipeTop) {
-                endGame();
+            } catch (error) {
+                console.error(error);
+                loadingEl.remove();
+                appendMessage("❌ 聯絡核心主機失敗。請檢查您的 API Key 是否正確，或確認您的網路連線。", "ai", "SYSTEM_ERROR");
+                statusTag.innerText = "連線錯誤";
+                statusTag.style.color = "#f85149";
             }
         }
 
-        if (!p.passed && p.x + p.width / 2 < bird.x) {
-            score++;
-            p.passed = true;
+        function appendMessage(text, sender, name) {
+            const row = document.createElement("div");
+            row.classList.add("msg-row", sender);
+            row.innerHTML = `
+                <div class="sender-name">${name}</div>
+                <div class="bubble">${escapeHtml(text)}</div>
+            `;
+            chatBox.appendChild(row);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        if (p.x + p.width < 0) {
-            pipes.splice(i, 1);
+        function showLoading() {
+            const row = document.createElement("div");
+            row.classList.add("msg-row", "ai");
+            row.innerHTML = `
+                <div class="sender-name">CYBER_AI</div>
+                <div class="loading-bubble">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+            `;
+            chatBox.appendChild(row);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return row;
         }
-    }
-}
 
-// 繪製遊戲畫面
-function render() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
 
-    ctx.fillStyle = "#70c5ce";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = "#ded895";
-    ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
-
-    pipes.forEach(p => {
-        ctx.fillStyle = "#73bf2e";
-        ctx.strokeStyle = "#538221";
-        ctx.lineWidth = 3;
-
-        ctx.fillRect(p.x, 0, p.width, p.topHeight);
-        ctx.strokeRect(p.x, -5, p.width, p.topHeight + 5);
-
-        const bottomPipeTop = p.topHeight + PIPE_GAP;
-        const bottomPipeHeight = canvas.height - bottomPipeTop;
-        ctx.fillRect(p.x, bottomPipeTop, p.width, bottomPipeHeight);
-        ctx.strokeRect(p.x, bottomPipeTop, p.width, bottomPipeHeight + 5);
-    });
-
-    ctx.fillStyle = "#f1c40f";
-    ctx.strokeStyle = "#e67e22";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(bird.x + bird.width/2, bird.y + bird.height/2, bird.width/2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(bird.x + bird.width * 0.7, bird.y + bird.height * 0.3, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(bird.x + bird.width * 0.75, bird.y + bird.height * 0.3, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#e67e22"; 
-    ctx.fillRect(bird.x + bird.width * 0.8, bird.y + bird.height * 0.45, 8, 5);
-
-    if (!gameOver) {
-        ctx.fillStyle = "#fff";
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 4;
-        ctx.font = "bold 35px sans-serif";
-        ctx.textAlign = "center";
-        ctx.strokeText(score, canvas.width / 2, 60);
-        ctx.fillText(score, canvas.width / 2, 60);
-    }
-}
-
-// 結束遊戲
-function endGame() {
-    gameOver = true;
-    
-    giantScoreEl.innerText = score;
-    giantScoreEl.style.display = "block";
-    
-    finalScoreEl.innerText = score;
-    gameOverBox.style.display = "block";
-}
-
-// 啟動與繪製初始畫面
-resetGame();
-</script>
-
+        sendBtn.addEventListener("click", handleSend);
+        userInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
+    </script>
 </body>
 </html>
